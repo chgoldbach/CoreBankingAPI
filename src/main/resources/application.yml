@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: core-banking-api
+
+  # H2 In-Memory Database (default profile — no Docker required)
+  datasource:
+    url: jdbc:h2:mem:bankingdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # Development: drop and re-create schema on startup
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+    open-in-view: false  # Prevent LazyInitializationExceptions
+
+# JWT Configuration
+jwt:
+  # 256-bit (32+ chars) secret key — override in production via env variables
+  secret: "CoreBankingApiSecretKey2024ProductionReplaceThis!!"
+  access-token-expiry: 900000      # 15 minutes (ms)
+  refresh-token-expiry: 604800000  # 7 days (ms)
+
+# Server Configuration
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never  # Do not leak stack traces in production
+
+# Logging
+logging:
+  level:
+    com.banking: DEBUG
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: when-authorized

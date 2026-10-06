@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: banking-postgres
+    environment:
+      POSTGRES_DB: bankingdb
+      POSTGRES_USER: banking_user
+      POSTGRES_PASSWORD: banking_pass
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banking_user -d bankingdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Core Banking API (Optional: uncomment to run API in Docker)
+  # banking-api:
+  #   build: .
+  #   container_name: banking-api
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: postgres
+  #     JWT_SECRET: "ProductionSecretKeyMinimum32Characters!!"
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  default:
+    name: banking-network

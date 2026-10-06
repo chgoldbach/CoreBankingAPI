@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core Banking | Web Client</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        [v-cloak] { display: none; }
+        /* Custom scrollbar for history */
+        .history-scroll::-webkit-scrollbar { width: 6px; }
+        .history-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .history-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .history-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div id="app" v-cloak class="min-h-screen">
+        
+        <!-- Navbar -->
+        <nav class="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16 items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <svg class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="ml-2 font-semibold text-xl text-gray-900">CoreBanking</span>
+                    </div>
+                    <div v-if="isLoggedIn" class="flex items-center space-x-4">
+                        <span class="text-sm text-gray-500 font-medium">{{ auth.email }}</span>
+                        <button @click="logout" class="text-sm font-semibold text-red-500 hover:text-red-700 transition">Çıkış Yap</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- ALERT MESSAGES -->
+            <div v-if="alert.show" :class="`mb-6 p-4 rounded-lg border shadow-sm flex items-center ${alert.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'} transition-all`">
+                <svg v-if="alert.type === 'success'" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                <svg v-else class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                {{ alert.message }}
+            </div>
+
+            <!-- AUTHENTICATION SCREEN -->
+            <div v-if="!isLoggedIn" class="max-w-md mx-auto mt-10">
+                <div class="bg-white py-8 px-10 shadow-lg shadow-gray-200/50 rounded-2xl border border-gray-100">
+                    <h2 class="text-2xl font-semibold text-gray-900 text-center mb-6">{{ isLoginMode ? 'Giriş Yap' : 'Kayıt Ol' }}</h2>
+                    
+                    <form @submit.prevent="isLoginMode ? login() : register()" class="space-y-4">
+                        <div v-if="!isLoginMode" class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Ad</label>
+                                <input v-model="authForm.firstName" type="text" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Soyad</label>
+                                <input v-model="authForm.lastName" type="text" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">E-Posta</label>
+                            <input v-model="authForm.email" type="email" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
+                            <input v-model="authForm.password" type="password" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        </div>
+
+                        <button type="submit" class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
+                            {{ isLoginMode ? 'Sisteme Gir' : 'Hesabımı Oluştur' }}
+                        </button>
+                    </form>
+                    
+                    <div class="mt-6 text-center">
+                        <button @click="isLoginMode = !isLoginMode" class="text-sm font-medium text-gray-500 hover:text-gray-900 transition">
+                            {{ isLoginMode ? 'Hesabınız yok mu? Kayıt olun.' : 'Zaten hesabınız var mı? Giriş yapın.' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD SCREEN -->
+            <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Accounts List Column (Takes up 2 cols) -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/80">
+                            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                                Vadesiz Hesaplarım
+                            </h3>
+                            <button @click="createAccount" class="inline-flex items-center px-4 py-2 border border-transparent text-xs font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition shadow-sm">
+                                + Yeni Hesap Aç
+                            </button>
+                        </div>
+                        
+                        <div class="divide-y divide-gray-100">
+                            <div v-if="accounts.length === 0" class="p-10 text-center text-gray-500">
+                                <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                Henüz bir hesabınız bulunmuyor. Sağ üstten yeni hesap açabilirsiniz.
+                            </div>
+                            
+                            <div v-for="acc in accounts" :key="acc.id" class="px-6 py-5 hover:bg-gray-50 transition flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                                <div>
+                                    <p class="text-base font-bold text-gray-900 tracking-wide">{{ formatIBAN(acc.accountNumber) }}</p>
+                                    <div class="flex items-center mt-1">
+                                        <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md font-mono">ID: {{ acc.id }}</span>
+                                    </div>
+                                </div>
+                                <div class="text-left sm:text-right">
+                                    <p class="text-2xl font-bold text-gray-900">{{ formatMoney(acc.balance) }} <span class="text-base text-gray-500 font-medium">{{ acc.currency }}</span></p>
+                                    <span v-if="!acc.active" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 mt-1">Pasif</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-end">
+                            <button @click="fetchData" class="text-xs font-medium text-gray-500 hover:text-gray-800 flex items-center transition">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                Sayfayı Yenile
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- TRANSACTION HISTORY -->
+                    <div class="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/80">
+                            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                İşlem Geçmişi (Son Hareketler)
+                            </h3>
+                        </div>
+                        <div class="max-h-80 overflow-y-auto history-scroll divide-y divide-gray-100">
+                            <div v-if="transactions.length === 0" class="p-8 text-center text-gray-500 text-sm">
+                                Henüz hiçbir para transferi gerçekleştirmediniz.
+                            </div>
+                            <div v-for="tx in transactions" :key="tx.id" class="px-6 py-4 hover:bg-gray-50 transition">
+                                <div class="flex justify-between items-start mb-1">
+                                    <span class="text-sm font-semibold text-gray-900">{{ tx.description || 'Para Transferi' }}</span>
+                                    <span :class="`text-sm font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-gray-900'}`">
+                                        {{ formatMoney(tx.amount) }} {{ tx.currency }}
+                                    </span>
+                                </div>
+                                <div class="text-xs text-gray-500 space-y-1">
+                                    <p>Gönderen: <span class="font-mono">{{ tx.fromAccountNumber }}</span></p>
+                                    <p>Alıcı: <span class="font-mono">{{ tx.toAccountNumber }}</span></p>
+                                    <p class="text-gray-400 mt-2">{{ new Date(tx.createdAt).toLocaleString('tr-TR') }} • Ref: {{ tx.referenceNumber }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Transfer Panel (Takes up 1 col) -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden sticky top-24">
+                        <div class="px-6 py-5 border-b border-gray-100 bg-blue-600">
+                            <h3 class="text-lg font-semibold text-white flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                                Para Transferi (Havale/EFT)
+                            </h3>
+                            <p class="text-blue-100 text-xs mt-1">ACID Uyumlu Güvenli İşlem Altyapısı</p>
+                        </div>
+                        <div class="p-6">
+                            <form @submit.prevent="transferMoney" class="space-y-5">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Gönderen Hesap</label>
+                                    <select v-model="transferForm.fromAccountId" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-gray-50">
+                                        <option value="" disabled>Seçiniz...</option>
+                                        <option v-for="acc in accounts" :key="acc.id" :value="acc.id">
+                                            {{ formatIBAN(acc.accountNumber) }} - {{ formatMoney(acc.balance) }} {{ acc.currency }}
+                                        </option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1 flex justify-between">
+                                        Alıcı Hesap ID 
+                                        <span class="text-xs text-gray-400 font-normal">(Örn: 550e8400-e29b...)</span>
+                                    </label>
+                                    <input v-model="transferForm.toAccountId" type="text" placeholder="UUID Formatında ID yapıştırın" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-gray-50 font-mono">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tutar (TRY)</label>
+                                    <div class="relative rounded-md shadow-sm">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <span class="text-gray-500 sm:text-sm">₺</span>
+                                        </div>
+                                        <input v-model.number="transferForm.amount" type="number" step="0.01" min="1" required class="w-full pl-7 px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-semibold text-gray-900">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
+                                    <input v-model="transferForm.description" type="text" placeholder="İsteğe bağlı" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-gray-50">
+                                </div>
+
+                                <button type="submit" :disabled="isTransferring" class="w-full flex justify-center py-3 px-4 mt-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span v-if="!isTransferring">Transferi Gerçekleştir</span>
+                                    <span v-else class="flex items-center">
+                                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        İşleniyor...
+                                    </span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, onMounted } = Vue;
+
+        const API_URL = 'http://localhost:8080/api';
+
+        createApp({
+            setup() {
+                const isLoggedIn = ref(false);
+                const isLoginMode = ref(true);
+                const isTransferring = ref(false);
+                const auth = reactive({ token: null, email: null });
+                
+                const authForm = reactive({ firstName: '', lastName: '', email: '', password: '' });
+                const transferForm = reactive({ fromAccountId: '', toAccountId: '', amount: '', description: '' });
+                
+                const accounts = ref([]);
+                const transactions = ref([]);
+                
+                const alert = reactive({ show: false, message: '', type: 'success' });
+
+                const showAlert = (message, type = 'success') => {
+                    alert.show = true;
+                    alert.message = message;
+                    alert.type = type;
+                    setTimeout(() => alert.show = false, 5000);
+                };
+
+                const getHeaders = () => ({
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${auth.token}`
+                });
+
+                // Sayfa yüklendiğinde LocalStorage kontrolü (Kalıcı Oturum)
+                onMounted(() => {
+                    const savedToken = localStorage.getItem('jwtToken');
+                    const savedEmail = localStorage.getItem('userEmail');
+                    if (savedToken && savedEmail) {
+                        auth.token = savedToken;
+                        auth.email = savedEmail;
+                        isLoggedIn.value = true;
+                        fetchData(); // Tüm dataları getir
+                    }
+                });
+
+                const login = async () => {
+                    try {
+                        const res = await fetch(`${API_URL}/auth/login`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: authForm.email, password: authForm.password })
+                        });
+                        const data = await res.json();
+                        
+                        if (!res.ok) throw new Error(data.message || 'Giriş başarısız. E-posta veya şifre hatalı.');
+                        
+                        auth.token = data.accessToken;
+                        auth.email = authForm.email;
+                        isLoggedIn.value = true;
+                        
+                        // LocalStorage'a kaydet (F5 atınca kaybolmasın)
+                        localStorage.setItem('jwtToken', data.accessToken);
+                        localStorage.setItem('userEmail', authForm.email);
+                        
+                        showAlert('Başarıyla giriş yapıldı.', 'success');
+                        fetchData();
+                    } catch (error) {
+                        showAlert(error.message, 'error');
+                    }
+                };
+
+                const register = async () => {
+                    try {
+                        const res = await fetch(`${API_URL}/auth/register`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(authForm)
+                        });
+                        const data = await res.json();
+                        
+                        if (!res.ok) throw new Error(data.message || 'Kayıt başarısız. Şifre en az 8 karakter ve Büyük/Küçük/Sayı içermelidir.');
+                        
+                        showAlert('Kayıt başarılı! Lütfen oluşturduğunuz hesap ile giriş yapın.', 'success');
+                        isLoginMode.value = true;
+                    } catch (error) {
+                        showAlert(error.message, 'error');
+                    }
+                };
+
+                const logout = () => {
+                    auth.token = null;
+                    auth.email = null;
+                    isLoggedIn.value = false;
+                    accounts.value = [];
+                    transactions.value = [];
+                    authForm.password = '';
+                    
+                    // LocalStorage Temizle
+                    localStorage.removeItem('jwtToken');
+                    localStorage.removeItem('userEmail');
+                };
+
+                // Tüm verileri (Hesaplar + Geçmiş) yenileyen ana fonksiyon
+                const fetchData = async () => {
+                    await Promise.all([fetchAccounts(), fetchTransactions()]);
+                };
+
+                // GET /api/accounts
+                const fetchAccounts = async () => {
+                    try {
+                        const res = await fetch(`${API_URL}/accounts`, { headers: getHeaders() });
+                        if (res.status === 401 || res.status === 403) logout(); // Token süresi dolduysa
+                        if (res.ok) accounts.value = await res.json();
+                    } catch (error) {
+                        console.error('Hesaplar yüklenemedi:', error);
+                    }
+                };
+
+                // GET /api/transactions/history
+                const fetchTransactions = async () => {
+                    try {
+                        const res = await fetch(`${API_URL}/transactions/history?page=0&size=50`, { headers: getHeaders() });
+                        if (res.ok) {
+                            const data = await res.json();
+                            transactions.value = data.content || [];
+                        }
+                    } catch (error) {
+                        console.error('İşlem geçmişi yüklenemedi:', error);
+                    }
+                };
+
+                // POST /api/accounts
+                const createAccount = async () => {
+                    try {
+                        const res = await fetch(`${API_URL}/accounts`, {
+                            method: 'POST',
+                            headers: getHeaders(),
+                            body: JSON.stringify({ currency: 'TRY', initialBalance: 10000.00 })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.message || 'Hesap açılamadı');
+                        
+                        showAlert(`Yeni hesap başarıyla açıldı (Başlangıç: 10.000 TRY)`, 'success');
+                        await fetchData(); // Listeyi yenile
+                    } catch (error) {
+                        showAlert(error.message, 'error');
+                    }
+                };
+
+                // POST /api/transactions/transfer
+                const transferMoney = async () => {
+                    isTransferring.value = true;
+                    try {
+                        // Kendi hesap ID'mizi "toAccount" olarak seçmeyi engelleyelim (Basit UX Koruması)
+                        if (transferForm.fromAccountId === transferForm.toAccountId) {
+                            throw new Error("Aynı hesaba transfer yapamazsınız!");
+                        }
+
+                        const res = await fetch(`${API_URL}/transactions/transfer`, {
+                            method: 'POST',
+                            headers: getHeaders(),
+                            body: JSON.stringify(transferForm)
+                        });
+                        
+                        if (!res.ok) {
+                            const data = await res.json().catch(() => ({}));
+                            throw new Error(data.message || 'Transfer başarısız (Yetersiz bakiye veya hatalı bilgi).');
+                        }
+                        
+                        const data = await res.json();
+                        showAlert(`Transfer başarılı! Ref: ${data.referenceNumber}`, 'success');
+                        
+                        transferForm.amount = '';
+                        transferForm.description = '';
+                        
+                        // Bakiye ve Geçmiş'i sunucudan gerçek zamanlı yenile
+                        await fetchData();
+                        
+                    } catch (error) {
+                        showAlert(error.message, 'error');
+                    } finally {
+                        isTransferring.value = false;
+                    }
+                };
+
+                const formatMoney = (amount) => {
+                    return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2 }).format(amount);
+                };
+
+                // TR123456... -> TR12 3456... formatlaması
+                const formatIBAN = (str) => {
+                    if (!str) return '';
+                    return str.replace(/(.{4})/g, '$1 ').trim();
+                };
+
+                return {
+                    isLoggedIn, isLoginMode, isTransferring, authForm, transferForm, 
+                    accounts, transactions, alert, auth,
+                    login, register, logout, fetchData, createAccount, transferMoney, formatMoney, formatIBAN
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
